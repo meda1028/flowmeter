@@ -29,21 +29,24 @@ Page 4 CalibrationFactor Slider
 
 
 ## Pin-Layout
-Arduino - Display - YF-B6
+Arduino──Display──YF-B6
 
-RX        TX      
+5V───────5V
 
-TX        RX
+GND──────GND
 
-DIG2                Data
+RX───────TX      
 
-DIG3                GND
+TX───────RX
 
-DIG4                5V (HIGH)
+DIG2──────────────Data
 
-5V        5V
+DIG3──────────────GND
 
-GND       GND
+DIG4──────────────5V (HIGH)
+
+──── ... Jumper Wire
+
 
 
 ### Folder Structure
