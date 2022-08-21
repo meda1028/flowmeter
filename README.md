@@ -29,7 +29,7 @@ Page 4 CalibrationFactor Slider
 
 
 ## Pin-Layout
-Arduino──Display──YF-B6
+Arduino ── Display ── YF-B6
 
 5V─────5V
 
