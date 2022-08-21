@@ -28,6 +28,17 @@ Page 4 CalibrationFactor Slider
 * Set the CalibrationFactor to get the exact amount of ml for each Sensor
 
 
+## Pin-Layout
+Arduino - Display - YF-B6   
+RX        TX        
+TX        RX
+DIG2                Data
+DIG3                GND
+DIG4                5V (HIGH)
+5V        5V
+GND       GND
+
+
 ### Folder Structure
 
     .
