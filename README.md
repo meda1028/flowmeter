@@ -16,5 +16,7 @@ C/Arduino code for Projecting Hall-Sensor Data on a Nextion TFT Display
 
 ## Hardware
 Board:        ELEGOO UNO R3
+
 Display:      TJC3224T024_011
+
 Hall_Sensor:  Water Flow Sensor YF-B6
