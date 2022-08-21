@@ -3,7 +3,7 @@ C/Arduino code for Projecting Hall-Sensor Data on a Nextion TFT Display
 
 ## Features
 
-- Page 1 SensorData -
+Page 1 SensorData
 
 * Display Current ml/s from Waterflow Sensor
 
@@ -11,19 +11,19 @@ C/Arduino code for Projecting Hall-Sensor Data on a Nextion TFT Display
 
 * Display total ml from Waterflow Sensor
 
- - Page 2 Graph -
+Page 2 Graph
 
 * Display Current ml/s from Waterflow Sensor
 
 * Display Average ml/s from Waterflow Sensor
 
-- Page 3 Scoreboard -
+Page 3 Scoreboard
 
 * Display The last 10 maximum Amount of ml/s
 
 * R/W and Stored on the Arduino EPROM 
 
-- Page 4 CalibrationFactor Slider -
+Page 4 CalibrationFactor Slider
 
 * Set the CalibrationFactor to get the exact amount of ml for each Sensor
 
