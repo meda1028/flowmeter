@@ -1,3 +1,5 @@
+
+
 /*
 Vcc5V(RED) Gnd(BLACK)
 signal: pin 2.
@@ -13,44 +15,53 @@ signal: pin 2.
 /**
  * -----------------------------------------------------Globale Variablen-------------------------------------------------------
  */
+int                 VCC2                  = 6;
+int                 VCC3                  = 4;
+int                 GND2                  = 7;
+int                 GND3                  = 3;
+int                 statusLed             = 8;
+int                 sensorInterrupt       = 0;  // 0 = digital pin 2
+int                 sensorPin             = 2;
+int                 score[11];
 
-byte                statusLed             = 13;
-byte                sensorInterrupt       = 0;  // 0 = digital pin 2
-byte                sensorPin             = 2;
- 
-volatile byte       pulseCount;  
+const int           grenzwert             = 20;
+unsigned int        flowMilliLitres;
+uint32_t            slid                  = 0;
+
+volatile byte       pulseCount;   
 
 float               flowRate;
 float               average;
 float               maxFlow;
 float               maximum;
-const float         calibrationFactor     = 4.3;
-
+uint32_t            calibrationFactor     = 43;
 
 unsigned long       totalMilliLitres;
 unsigned long       oldTime;
 unsigned long       trichterStartZeit;
-unsigned long        counter;
-
-int                 score[11];
-
-const int           grenzwert             = 20;
-unsigned int        flowMilliLitres;
+unsigned long       counter;
 
 bool                trichter;
 
 // Calibration Factor 1-30 L/min F=6.68Q +- 5% (Q=L/min) YF-B6
-
-
-
-
 /**
  * -----------------------------------------------------------SETUP-----------------------------------------------------------
  */
 
+//  Nextion - Arduino Communication
+char buffer[100] = {0};
+NexButton b0 = NexButton(1, 23, "b0"); // Reset Button added
+NexSlider h0 = NexSlider(3, 2, "h0"); // Slider added
+
+NexTouch *nex_listen_list[] =
+{
+  &b0,  // Reset Button added
+  &h0,  // Slider added
+  NULL  // String terminated
+};
+
 void setup()
 {
- 
   // Serielle Übertragung an Host
   Serial.begin(9600); //9600 BAUD
   Serial.print("baud=115200");
@@ -60,13 +71,23 @@ void setup()
   Serial.end();            
   delay(500);             
   Serial.begin(115200);
-  
+
   // status LED line as an output
   pinMode(statusLed, OUTPUT);
   digitalWrite(statusLed, HIGH);  //active-low LED
  
   pinMode(sensorPin, INPUT);
   digitalWrite(sensorPin, HIGH); 
+    //config Pins
+    
+  pinMode (VCC2,OUTPUT);
+  digitalWrite(VCC2, HIGH);
+  pinMode (VCC3,OUTPUT);
+  digitalWrite(VCC3, HIGH);
+  pinMode (GND2,OUTPUT);
+  digitalWrite(GND2, LOW);
+  pinMode (GND3,OUTPUT);
+  digitalWrite(GND3, LOW);
 
   // Variablen
 
@@ -78,16 +99,15 @@ void setup()
   flowMilliLitres   = 0;
   totalMilliLitres  = 0;
   maximum           = 0.0;
- 
+  
   //reseteprom();
   readeprom();
   sendScoreboardtoNextion();
-
-  
-  /* pin 2 mit interrupt triggert bei fallender Flanke */
-   
-  attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
+  attachInterrupt(sensorInterrupt, pulseCounter, FALLING);// pin 2 mit interrupt triggert bei fallender Flanke *
+  b0.attachPush(b0PushCallback);
+  h0.attachPop(h0PopCallback, &h0);
 }
+
 
 /**
  * -----------------------------------------------------------MAIN------------------------------------------------------------
@@ -102,9 +122,11 @@ void loop()
   sendFlowToNextion();
   sendTotalToNextion();
   sendmaximumToNextion();
+  sendCFtoNextion();
   Bar();
   Graph();
   Graph2();
+  nexLoop(nex_listen_list); //check for any touch event
   delay(50);
 }
 
@@ -112,29 +134,41 @@ void loop()
  * -----------------------------------------------------------METHODEN--------------------------------------------------------
  */
 
+void b0PushCallback(void *ptr) //Press event for button b0
+{
+  for (int i = 0 ; i < EEPROM.length() ; i++) {EEPROM.write(i, 0);}
+}
+
+int h0PopCallback(void *ptr) // Release event for slider
+{
+  h0.getValue(&slid);
+  if(slid==0){h0.getValue(&slid);}
+  String command2 = "page3.n4.txt=\""+String(slid)+"\"";
+  Serial.print(command2);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  return slid;
+}
+
 int readSensor()
 {  
-
    if((millis() - oldTime) > 100)    // Zählt einmal pro 100ms
   {
-
     // flow rate berechnen und an host übermittlen Interupt deaktivieren
+    calibrationFactor = h0PopCallback(0);
     detachInterrupt(sensorInterrupt);
-    flowRate = ((100.0 / (millis() - oldTime)) * pulseCount) / calibrationFactor;  // L/6s = ((100ms/Verzögerung) * Anzahl Sensorpulse) / Kallibrierfaktor 
+    flowRate = (((100.0 / (millis() - oldTime)) * pulseCount)*10) / calibrationFactor;  // L/4.3s = ((100ms/Verzögerung) * Anzahl Sensorpulse) / Kallibrierfaktor 
     flowMilliLitres = (flowRate / 6) * 1000; // ml/s
     totalMilliLitres += (flowMilliLitres/10); // ml total
     oldTime = millis();
-
     /* Durchschnittlicher DURCHFLUSS
-    
     if (flowRate>0){
       for (int i=0; i < 10; i++){average = average + flowMilliLitres;}
       average = average / 10;
     }
     */
-    
     pulseCount = 0;
-   
     // Enable the interrupt again now that we've finished sending output
     attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
     return flowMilliLitres; 
@@ -173,34 +207,17 @@ void trichterRecord() {
         maxFlowTemp = temp;
       }
     }
-    
     average = (average/counter);
     sendaverageToNextion();
-    
     sendScoreboardtoNextion();//score[10] ausgeben
-    savetoeprom(); //TODO score in EPROM schreiben
+    savetoeprom(); 
     trichter = false;
-    
     String command2 = "g0.pco=65535";
     Serial.print(command2);
     endNextionCommand();
   }
 }
 
-/* maxFlowTemp = 850
-
-1.    3033 <---
-2.    24478
-3.   -8097
-4.   25824
-5.   100
-6.   0
-7.   0
-8.   0
-9.   0
-10.  0
-
-*/
 void readeprom()
 {
   EEPROM.get(0, score);
@@ -217,7 +234,6 @@ void readeprom()
 void savetoeprom()
 { 
   EEPROM.put(0, score);
-  
       /*
       for(int i=0; i<20; i=i+2)
        {
@@ -270,6 +286,14 @@ void sendTotalToNextion()
 void sendaverageToNextion()
 {
   String command = "page0.average.txt=\""+String(average)+"\"";
+  Serial.print(command);
+  endNextionCommand();
+}
+
+void sendCFtoNextion()
+{
+  calibrationFactor = h0PopCallback(0);
+  String command = "page3.cF.txt=\""+String(calibrationFactor)+"\"";
   Serial.print(command);
   endNextionCommand();
 }
@@ -344,6 +368,7 @@ void sendScoreboardtoNextion()
   Serial.print(command9);
   endNextionCommand();
 }
+
 
 void endNextionCommand()
 {
